@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local dependency resolution and Python selection
+uv.lock
+.python-version
+
+# Test caches and local task artifacts
+.pytest_cache/
+work/
+outputs/
