@@ -1,8 +1,9 @@
 [project]
 name = "commit-rewriter"
 version = "0.1.0"
-description = "A local web UI for editing Git commit messages safely"
+description = "Local web app for editing local commit messages to a Git repository"
 readme = "README.md"
+authors = [{name = "Simon Willison"}]
 requires-python = ">=3.11"
 dependencies = ["starlette>=0.47,<1", "uvicorn>=0.35,<1"]
 
@@ -12,6 +13,12 @@ dev = ["pytest>=8,<10", "httpx>=0.28,<1"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[project.urls]
+Homepage = "https://github.com/simonw/commit-rewriter"
+Changelog = "https://github.com/simonw/commit-rewriter/releases"
+Issues = "https://github.com/simonw/commit-rewriter/issues"
+CI = "https://github.com/simonw/commit-rewriter/actions"
 
 [project.scripts]
 commit-rewriter = "commit_rewriter:main"
