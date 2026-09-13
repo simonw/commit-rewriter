@@ -29,3 +29,10 @@ uv tool install commit-rewriter
 ## Screenshot
 
 HERE
+
+## Contributing
+
+To run the tests:
+```bash
+uv run pytest
+```
