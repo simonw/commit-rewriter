@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>commit-rewriter</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        color: #202b3b;
+        background: #f5f7fa;
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 1360px;
+        margin: auto;
+        padding: 40px 24px;
+      }
+      h1 {
+        font-size: 36px;
+        letter-spacing: -1.5px;
+        margin: 8px 0;
+      }
+      p {
+        color: #5d6a7e;
+        line-height: 1.6;
+      }
+      .eyebrow {
+        color: #227254;
+        font-size: 12px;
+        letter-spacing: 2px;
+        font-weight: 700;
+      }
+      .toolbar {
+        position: sticky;
+        top: 0;
+        background: #f5f7fa;
+        padding: 18px 0;
+        z-index: 2;
+        border-bottom: 1px solid #d8dfe8;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+        border-radius: 7px;
+        border: 1px solid #c1cbd8;
+        padding: 11px;
+        background: #ffffff;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button.primary {
+        background: #16734e;
+        color: #ffffff;
+        font-weight: 750;
+        border: 0;
+        padding: 15px 24px;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      input[type="search"] {
+        flex: 1;
+        min-width: 180px;
+      }
+      label {
+        font-size: 14px;
+      }
+      .count {
+        font-weight: 700;
+        margin-right: auto;
+      }
+      article {
+        background: #ffffff;
+        border: 1px solid #d8dfe8;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 18px 0;
+      }
+      article.edited {
+        border-color: #16734e;
+      }
+      .meta {
+        font:
+          12px ui-monospace,
+          monospace;
+        color: #5d6a7e;
+        margin-bottom: 12px;
+        overflow-wrap: anywhere;
+      }
+      textarea {
+        width: 100%;
+        resize: vertical;
+        min-height: 105px;
+        line-height: 1.5;
+        background: #ffffff;
+      }
+      .warning {
+        color: #8b5700;
+      }
+      .error {
+        color: #b42318;
+      }
+      .validation {
+        min-height: 23px;
+        font-size: 13px;
+        margin-top: 7px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      progress {
+        width: 100%;
+        height: 18px;
+        accent-color: #16734e;
+      }
+      #status {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      dialog {
+        max-width: 900px;
+        width: 95%;
+        max-height: 85vh;
+        background: #ffffff;
+        border: 1px solid #c1cbd8;
+        border-radius: 12px;
+        color: inherit;
+      }
+      dialog::backdrop {
+        background: #000a;
+      }
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #eef2f6;
+        padding: 12px;
+        font-size: 13px;
+      }
+      details {
+        margin: 16px 0;
+      }
+      footer {
+        font-size: 12px;
+        color: #637086;
+        margin-top: 30px;
+      }
+      @media (max-width: 600px) {
+        .comparison {
+          grid-template-columns: 1fr;
+        }
+        main {
+          padding: 24px 14px;
+        }
+        h1 {
+          font-size: 30px;
+        }
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+      .sidebar {
+        position: sticky;
+        top: calc(var(--toolbar-height, 140px) + 12px);
+        border: 1px solid #d8dfe8;
+        border-radius: 10px;
+        background: white;
+        margin-top: 18px;
+        padding: 14px;
+      }
+      .sidebar summary {
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .sidebar nav {
+        max-height: calc(100vh - var(--toolbar-height, 140px) - 110px);
+        overflow: auto;
+        margin-top: 12px;
+      }
+      .nav-link {
+        display: block;
+        padding: 10px 8px;
+        border-radius: 6px;
+        color: #334155;
+        text-decoration: none;
+        font-size: 13px;
+        border-left: 3px solid transparent;
+        line-height: 1.4;
+      }
+      .nav-link:hover,
+      .nav-link:focus {
+        background: #eef5f1;
+      }
+      .nav-link.pending {
+        border-left-color: #16734e;
+      }
+      .nav-link small {
+        display: block;
+        color: #64748b;
+        font:
+          11px ui-monospace,
+          monospace;
+        margin-top: 4px;
+      }
+      article {
+        scroll-margin-top: calc(var(--toolbar-height, 140px) + 18px);
+      }
+      article:target {
+        outline: 2px solid #16734e;
+        outline-offset: 3px;
+      }
+      .empty {
+        color: #64748b;
+        font-size: 13px;
+      }
+      @media (max-width: 760px) {
+        .layout {
+          grid-template-columns: 1fr;
+          gap: 0;
+        }
+        .sidebar {
+          position: static;
+        }
+        .sidebar nav {
+          max-height: 180px;
+        }
+        article {
+          scroll-margin-top: calc(var(--toolbar-height, 200px) + 18px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">LOCAL GIT HISTORY EDITOR</div>
+      <h1>commit-rewriter</h1>
+      <p id="repo">Loading repository…</p>
+      <p>
+        Edit the latest 100 commits on <strong>main</strong>. Author and
+        committer identities and dates stay intact. A timestamped backup branch
+        is created before every rewrite.
+      </p>
+      <div class="toolbar">
+        <div class="row">
+          <span class="count" id="count" aria-live="polite"
+            >0 pending edits</span
+          ><button id="discard">Discard drafts</button
+          ><button class="primary" id="review" disabled>
+            Rewrite 0 commit messages
+          </button>
+        </div>
+        <div class="row" style="margin-top: 14px">
+          <input
+            id="search"
+            type="search"
+            aria-label="Search commits"
+            placeholder="Search message, author, or hash"
+          /><label><input id="only" type="checkbox" /> Edited only</label>
+        </div>
+        <div id="progressBox" class="hidden">
+          <p id="progressLabel" aria-live="polite"></p>
+          <progress
+            id="bar"
+            max="1"
+            value="0"
+            aria-label="Rewrite progress"
+          ></progress>
+        </div>
+      </div>
+      <p id="status" role="status"></p>
+      <button id="reload" class="hidden">Reload current history</button>
+      <div class="layout">
+        <aside class="sidebar">
+          <details open style="margin: 0">
+            <summary>Navigate commits</summary>
+            <nav id="navigation" aria-label="Commit navigation"></nav>
+            <p id="noMatches" class="empty hidden">No matching commits</p>
+          </details>
+        </aside>
+        <section id="commits" aria-label="Commit editors"></section>
+      </div>
+      <footer>
+        Drafts are stored in this browser’s localStorage. Rewrites change
+        descendant hashes and remove invalidated commit signatures. No changes
+        are pushed.
+      </footer>
+      <dialog id="dialog">
+        <h2>Review message changes</h2>
+        <p>
+          main will be updated after a backup branch is created. File contents,
+          author information, and both dates are preserved.
+        </p>
+        <div id="changes"></div>
+        <div class="row">
+          <button id="cancel">Keep editing</button
+          ><button id="apply" class="primary">Back up & rewrite</button>
+        </div>
+      </dialog>
+      <script>
+        const TOKEN = "__TOKEN__";
+      </script>
+      <script src="/app.js"></script>
+    </main>
+  </body>
+</html>
