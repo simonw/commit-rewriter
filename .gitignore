@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+.DS_Store
+
 # Local dependency resolution and Python selection
 uv.lock
 .python-version
