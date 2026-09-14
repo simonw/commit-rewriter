@@ -106,8 +106,9 @@ class Repository:
             )
         if self.git("rev-parse", "--is-shallow-repository").strip() == b"true":
             raise GitError("A complete clone is required; this repository is shallow.")
-        if self.git("status", "--porcelain").strip():
-            raise GitError("The working tree must be clean, including untracked files.")
+        # Rewrites preserve the trees and leave pending index/worktree changes alone.
+        if self.git("ls-files", "--unmerged"):
+            raise GitError("Resolve index conflicts before rewriting.")
         for marker in (
             "MERGE_HEAD",
             "CHERRY_PICK_HEAD",
@@ -115,11 +116,12 @@ class Repository:
             "rebase-merge",
             "rebase-apply",
             "BISECT_LOG",
+            "sequencer",
         ):
             path = self.git("rev-parse", "--git-path", marker).decode().strip()
             if (self.path / path).exists():
                 raise GitError("Finish the active Git operation before rewriting.")
-        # Other worktrees could have their own in-progress operations or changes.
+        # Other worktrees could have their own in-progress Git operations.
         records = self.git("worktree", "list", "--porcelain").decode().split("\n\n")
         current = self.git("rev-parse", "--show-toplevel").decode().strip()
         for record in records:

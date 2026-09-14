@@ -108,16 +108,141 @@ def test_long_subject_allowed(repo):
     assert job["status"] == "complete"
 
 
-def test_stale_tip_dirty_tree_and_invalid_commit(repo):
+def test_stale_tip_and_invalid_commit(repo):
     old = repo.tip()
     commit(repo.path, "New commit")
     with pytest.raises(GitError, match="main changed"):
         repo.prepare(old, {old: "Edit"})
     with pytest.raises(GitError, match="latest 100"):
         repo.prepare(repo.tip(), {"not-a-hash": "Edit"})
-    (repo.path / "untracked").write_text("dirty")
-    with pytest.raises(GitError, match="clean"):
-        repo.prepare(repo.tip(), {repo.tip(): "Edit"})
+
+
+@pytest.mark.parametrize("checkout", ["main", "feature", "detached"])
+def test_rewrite_preserves_uncommitted_changes(repo, checkout):
+    for name in ("partial.txt", "staged-delete.txt", "unstaged-delete.txt"):
+        (repo.path / name).write_text("Original contents\n")
+    git(repo.path, "add", ".")
+    earlier = commit(repo.path, "Add files")
+    (repo.path / "history.txt").write_text("Only in the later commit\n")
+    git(repo.path, "add", "history.txt")
+    commit(repo.path, "Add another file")
+    if checkout == "feature":
+        git(repo.path, "checkout", "-b", "feature", earlier)
+    elif checkout == "detached":
+        git(repo.path, "checkout", "--detach", earlier)
+
+    (repo.path / "partial.txt").write_text("Staged contents\n")
+    (repo.path / "added.txt").write_text("Staged addition\n")
+    (repo.path / "staged-delete.txt").unlink()
+    git(repo.path, "add", "partial.txt", "added.txt", "staged-delete.txt")
+    (repo.path / "partial.txt").write_text("Unstaged contents\n")
+    (repo.path / "unstaged-delete.txt").unlink()
+    (repo.path / "untracked").mkdir()
+    (repo.path / "untracked" / "nested.bin").write_bytes(b"\x00\xffuntracked\n")
+
+    def worktree_contents():
+        return {
+            path.relative_to(repo.path): path.read_bytes()
+            for path in repo.path.rglob("*")
+            if path.is_file() and ".git" not in path.relative_to(repo.path).parts
+        }
+
+    def refs():
+        return dict(
+            line.split()
+            for line in git(
+                repo.path, "for-each-ref", "--format=%(refname) %(objectname)"
+            ).splitlines()
+        )
+
+    head_before = git(repo.path, "rev-parse", "HEAD")
+    refs_before = refs()
+    cached_before = repo.git("diff", "--cached", "--binary")
+    unstaged_before = repo.git("diff", "--binary")
+    files_before = worktree_contents()
+    index = repo.path / git(repo.path, "rev-parse", "--git-path", "index")
+    index_before = index.read_bytes()
+
+    old, job = run(repo, {earlier: "Describe the original files better"})
+
+    assert job["status"] == "complete"
+    assert len(job["mapping"]) == 2
+    assert repo.tip() != old
+    assert index.read_bytes() == index_before
+    assert worktree_contents() == files_before
+    assert repo.git("diff", "--cached", "--binary") == cached_before
+    assert repo.git("diff", "--binary") == unstaged_before
+    for before, after in job["mapping"].items():
+        assert git(repo.path, "rev-parse", f"{before}^{{tree}}") == git(
+            repo.path, "rev-parse", f"{after}^{{tree}}"
+        )
+    assert git(repo.path, "rev-parse", "HEAD") == (
+        job["tip"] if checkout == "main" else head_before
+    )
+    refs_after = refs()
+    assert refs_after.pop(f"refs/heads/{job['backup']}") == old
+    refs_before[repo.ref] = job["tip"]
+    assert refs_after == refs_before
+
+
+def test_unmerged_index_without_operation_markers_rejected(repo):
+    old = repo.tip()
+    blob = repo.git("hash-object", "-w", "--stdin", data=b"Conflicted\n").strip()
+    repo.git(
+        "update-index",
+        "--index-info",
+        data=b"".join(
+            b"100644 " + blob + f" {stage}\tconflicted.txt\n".encode()
+            for stage in (1, 2, 3)
+        ),
+    )
+    assert repo.git("ls-files", "--unmerged")
+    with pytest.raises(GitError, match="Resolve index conflicts"):
+        repo.prepare(old, {old: "Edit"})
+    assert repo.tip() == old
+    assert git(repo.path, "branch", "--list", "commit-message-backup/*") == ""
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "MERGE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "REVERT_HEAD",
+        "rebase-merge",
+        "rebase-apply",
+        "BISECT_LOG",
+        "sequencer",
+    ],
+)
+def test_active_git_operation_rejected(repo, marker):
+    old = repo.tip()
+    path = repo.path / git(repo.path, "rev-parse", "--git-path", marker)
+    if marker in {"rebase-merge", "rebase-apply", "sequencer"}:
+        path.mkdir()
+    else:
+        path.write_text(old + "\n")
+    with pytest.raises(GitError, match="Finish the active Git operation"):
+        repo.prepare(old, {old: "Edit"})
+    assert repo.tip() == old
+    assert git(repo.path, "branch", "--list", "commit-message-backup/*") == ""
+
+
+def test_git_operation_started_during_rewrite_keeps_main_and_backup(repo):
+    old = repo.tip()
+    edits = repo.prepare(old, {old: "Edit"})
+    sequencer = repo.path / git(repo.path, "rev-parse", "--git-path", "sequencer")
+    job = {}
+
+    def report(**fields):
+        job.update(fields)
+        if fields.get("done") == 1:
+            sequencer.mkdir()
+
+    with pytest.raises(GitError, match="Finish the active Git operation"):
+        repo.rewrite(old, edits, report)
+    assert repo.tip() == old
+    assert git(repo.path, "rev-parse", job["backup"]) == old
 
 
 def test_failure_keeps_main_and_backup(repo, monkeypatch):
