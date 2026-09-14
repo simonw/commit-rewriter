@@ -28,7 +28,7 @@ uv tool install commit-rewriter
 
 ## Screenshot
 
-HERE
+![Screenshot of the commit-rewriter web interface. A heading reads commit-rewriter above the repository path and current branch and commit hash, with a short description of the tool. A toolbar shows a pending edits count with Discard drafts and Rewrite commit messages buttons, followed by a search box for message, author, or hash and an Edited only checkbox. A left sidebar titled Navigate commits lists recent commit messages with their short hashes. The main panel shows a card for each commit with its hash, author and timestamp, an editable text area containing the commit message, and a View full formatted diff toggle.](https://raw.githubusercontent.com/simonw/commit-rewriter/refs/heads/main/screenshot.webp)
 
 ## Contributing
 
