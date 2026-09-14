@@ -1,0 +1,8 @@
+- server: [uvx, commit-rewriter, -p, "8345"]
+
+- url: http://127.0.0.1:8345/
+  output: screenshot.webp
+  quality: 80
+  width: 1024
+  height: 768
+  wait: 3000

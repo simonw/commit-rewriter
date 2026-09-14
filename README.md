@@ -36,3 +36,7 @@ To run the tests:
 ```bash
 uv run pytest
 ```
+To re-take the screenshot using [shot-scraper](https://shot-scraper.datasette.io/):
+```bash
+shot-scraper multi shots.yml
+```
