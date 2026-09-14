@@ -1,6 +1,6 @@
 [project]
 name = "commit-rewriter"
-version = "0.1.0"
+version = "0.1"
 description = "Local web app for editing local commit messages to a Git repository"
 readme = "README.md"
 authors = [{name = "Simon Willison"}]
