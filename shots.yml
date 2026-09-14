@@ -1,4 +1,4 @@
-- server: [uvx, commit-rewriter, -p, "8345"]
+- server: [uv, run, commit-rewriter, -p, "8345"]
 
 - url: http://127.0.0.1:8345/
   output: screenshot.webp
